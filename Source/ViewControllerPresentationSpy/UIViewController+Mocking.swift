@@ -15,14 +15,21 @@ extension Notification.Name {
 }
 
 extension UIViewController {
-    static func swizzleCaptureAlert() {
-        replaceInstanceMethod(
-            original: #selector(present(_:animated:completion:)),
-            swizzled: #selector(mock_presentViewControllerCapturingAlert(viewControllerToPresent:animated:completion:))
-        )
-    }
+    static var presentSwizzleCount = 0
 
     static func swizzleCapturePresent() {
+        swizzlePresent()
+        presentSwizzleCount += 1
+    }
+
+    static func restoreCaptureSwizzle() {
+        presentSwizzleCount -= 1
+        swizzlePresent()
+    }
+
+    private static func swizzlePresent() {
+        guard presentSwizzleCount == 0 else { return }
+
         replaceInstanceMethod(
             original: #selector(present(_:animated:completion:)),
             swizzled: #selector(mock_presentViewControllerCapturingIt(viewControllerToPresent:animated:completion:))
@@ -36,31 +43,19 @@ extension UIViewController {
         )
     }
 
-    @objc func mock_presentViewControllerCapturingAlert(
-        viewControllerToPresent: UIViewController, animated flag: Bool, completion: (() -> Void)?
-    ) {
-        guard viewControllerToPresent.isKind(of: UIAlertController.self) else { return }
-        viewControllerToPresent.loadViewIfNeeded()
-        let closureContainer = ClosureContainer(closure: completion)
-        let nc = NotificationCenter.default
-        nc.post(
-            name: Notification.Name.alertControllerPresented,
-            object: viewControllerToPresent,
-            userInfo: [
-                presentingViewControllerKey: self,
-                animatedKey: flag,
-                completionKey: closureContainer,
-            ]
-        )
-    }
-
     @objc func mock_presentViewControllerCapturingIt(
         viewControllerToPresent: UIViewController, animated flag: Bool, completion: (() -> Void)?
     ) {
         viewControllerToPresent.loadViewIfNeeded()
         let closureContainer = ClosureContainer(closure: completion)
+
+
+        let notification = viewControllerToPresent.isKind(of: UIAlertController.self) ?
+            Notification.Name.alertControllerPresented :
+            Notification.Name.viewControllerPresented
+
         NotificationCenter.default.post(
-            name: Notification.Name.viewControllerPresented,
+            name: notification,
             object: viewControllerToPresent,
             userInfo: [
                 presentingViewControllerKey: self,

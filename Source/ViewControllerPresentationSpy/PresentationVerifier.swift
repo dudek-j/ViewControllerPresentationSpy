@@ -50,17 +50,6 @@ public class PresentationVerifier: NSObject {
             )
             return
         }
-        guard !AlertVerifier.isSwizzled else {
-            Fail().fail(
-                message: """
-                    A PresentationVerifier may not be created while an AlertVerifier exists. Try \
-                    making the AlertVerifier optional, and setting it to nil before creating the \
-                    PresentationVerifier.
-                    """,
-                location: SourceLocation(fileID: #fileID, filePath: #filePath, line: #line, column: #column)
-            )
-            return
-        }
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(viewControllerWasPresented(_:)),
@@ -80,7 +69,12 @@ public class PresentationVerifier: NSObject {
     }
 
     @objc private static func swizzleMocks() {
-        UIViewController.swizzleCapturePresent()
+        if PresentationVerifier.isSwizzled {
+            UIViewController.restoreCaptureSwizzle()
+        } else {
+            UIViewController.swizzleCapturePresent()
+        }
+
         PresentationVerifier.isSwizzled.toggle()
     }
 

@@ -77,9 +77,14 @@ public class AlertVerifier: NSObject {
     }
 
     @objc private static func swizzleMocks() {
+        if AlertVerifier.isSwizzled {
+            UIViewController.restoreCaptureSwizzle()
+        } else {
+            UIViewController.swizzleCapturePresent()
+        }
+
         UIAlertAction.swizzle()
         UIAlertController.swizzle()
-        UIViewController.swizzleCaptureAlert()
         AlertVerifier.isSwizzled.toggle()
     }
 
